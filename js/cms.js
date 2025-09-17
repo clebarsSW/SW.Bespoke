@@ -27,13 +27,13 @@
   function setText(el, value) {
     if (!el) return;
     el.textContent = value || '';
-    el.classList.remove('w-dyn-bind-empty'); // Webflow hides these
+    el.classList.remove('w-dyn-bind-empty');
   }
   function setImg(el, src, alt) {
     if (!el || !src) return;
     el.src = src;
     el.alt = alt || '';
-    el.classList.remove('w-dyn-bind-empty'); // ensure it’s visible
+    el.classList.remove('w-dyn-bind-empty');
   }
 
   // --- PROJECT INDEX (project-index.html) ---
@@ -54,7 +54,11 @@
       const name        = row._('Project Name')      || row._('Name') || '';
       const year        = row._('Year')              || '';
       const region      = row._('Region')            || '';
-      const types       = splitMulti(row._('Project Type'));
+      // robust type mapping: accept "Project Type" or 3 separate columns
+      let types = splitMulti(row._('Project Type'));
+      if (!types.length) {
+        types = [row._('Type 1'), row._('Type 2'), row._('Type 3')].filter(Boolean);
+      }
       const designer    = row._('Designer')          || '';
       const purchaser   = row._('Purchaser')         || '';
       const summary     = row._('Summary')           || '';
@@ -66,34 +70,31 @@
       // Fill the visible fields
       setText(item.querySelector('[fs-list-field="project-name"]'), name);
       setText(item.querySelector('[fs-list-field="year"]'), year);
-
-      // region label shown on the row
       setText(item.querySelector('.categories.region'), region);
 
-      // 3 type slots
+      // 3 type slots (these are the chips in your markup)
       const typeWrap = item.querySelector('#w-node-e49b52f6-5b1d-8a7a-e0f6-5c3854a78d42-c10dda18');
       if (typeWrap) {
-        const typeSlots = typeWrap.querySelectorAll('.categories.type');
-        typeSlots.forEach((slot, i) => setText(slot, types[i] || ''));
+        const slots = typeWrap.querySelectorAll('.categories.type');
+        slots.forEach((slot, i) => setText(slot, types[i] || ''));
       }
 
       // Hover image inside mouse_wrapper
-      const hoverImg = item.querySelector('.mouse_wrapper img');
-      setImg(hoverImg, heroImage, name);
+      setImg(item.querySelector('.mouse_wrapper img'), heroImage, name);
 
-      // dropdown content (three text blocks)
+      // Dropdown content (three text blocks inside right column)
       const info = item.querySelectorAll('.text-block-12.project-text');
       setText(info[0], summary);
       setText(info[1], designer);
       setText(info[2], purchaser);
 
       // link to full project
-      const viewLink = item.querySelector('.index-column-2 .link-block-8');
+      const viewLink = item.querySelector('.index-column-2 .link-block-8 a, .index-column-2 .link-block-8');
       if (viewLink) viewLink.href = projectURL || '#';
 
-      // hidden fields Finsweet reads
+      // Hidden fields Finsweet reads
       setText(item.querySelector('[fs-list-field="region"]'), region);
-      // types already set in the visible slots
+      item.querySelectorAll('[fs-list-field="project-type"]').forEach((el, i) => setText(el, types[i] || ''));
 
       list.appendChild(item);
     });
@@ -116,7 +117,8 @@
       const name        = row._('Project Name')   || row._('Name') || '';
       const location    = row._('Location')       || '';
       const region      = row._('Region')         || '';
-      const types       = splitMulti(row._('Project Type'));
+      let types         = splitMulti(row._('Project Type'));
+      if (!types.length) types = [row._('Type 1'), row._('Type 2'), row._('Type 3')].filter(Boolean);
       const imageURL    = row._('Hero Image URL') || '';
       const projectURL  = row._('Project URL')    || '#';
 
@@ -134,17 +136,15 @@
       const card = item.querySelector('.grid-project');
       if (card) card.setAttribute('data-tag', tagList);
 
-      // mirror into hidden fields
+      // mirror into hidden fields (used by Finsweet)
       setText(item.querySelector('[fs-list-field="region"]'), region);
-      item.querySelectorAll('[fs-list-field="project-type"]')
-        .forEach((el, i) => setText(el, types[i] || ''));
+      item.querySelectorAll('[fs-list-field="project-type"]').forEach((el, i) => setText(el, types[i] || ''));
 
       gridList.appendChild(item);
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    renderProjectIndex().catch(console.error);
-    renderSelectedWorks().catch(console.error);
-  });
+  // IMPORTANT: run immediately (defer ensures this runs before Finsweet/Webflow)
+  renderProjectIndex().catch(console.error);
+  renderSelectedWorks().catch(console.error);
 })();
