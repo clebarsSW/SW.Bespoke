@@ -1,6 +1,7 @@
 // /js/cms.js
 (function () {
-  const PROJECTS_CSV = encodeURI('data/projects-index.csv'); // relative path
+  // Use a RELATIVE path (no leading slash)
+  const PROJECTS_CSV = encodeURI('data/projects-index.csv');
 
   // --- Utilities ---
   function loadCSV(path) {
@@ -16,24 +17,15 @@
   }
   function normalizeRow(row) {
     const norm = {};
-    Object.keys(row).forEach(k => { norm[k.trim().toLowerCase()] = row[k]; });
+    Object.keys(row).forEach(k => {
+      norm[k.trim().toLowerCase()] = row[k];
+    });
     norm._ = (name) => norm[name.trim().toLowerCase()];
     return norm;
   }
   function splitMulti(v) {
     if (!v) return [];
     return String(v).split(/[,;|]/).map(s => s.trim()).filter(Boolean);
-  }
-  function setText(el, value) {
-    if (!el) return;
-    el.textContent = value || '';
-    el.classList.remove('w-dyn-bind-empty');
-  }
-  function setImg(el, src, alt) {
-    if (!el || !src) return;
-    el.src = src;
-    el.alt = alt || '';
-    el.classList.remove('w-dyn-bind-empty');
   }
 
   // --- PROJECT INDEX (project-index.html) ---
@@ -44,21 +36,19 @@
     const template = list.querySelector('.w-dyn-item');
     if (!template) return;
 
+    // Load your CSV (relative path)
     const rows = await loadCSV(PROJECTS_CSV);
+    console.log('[CMS] Project Index rows:', rows.length);
 
-    // keep a template, then clear the list
-    const tpl = template.cloneNode(true);
+    // Clear and clone
     list.innerHTML = '';
+    const tpl = template.cloneNode(true);
 
     rows.forEach(row => {
       const name        = row._('Project Name')      || row._('Name') || '';
       const year        = row._('Year')              || '';
       const region      = row._('Region')            || '';
-      // robust type mapping: accept "Project Type" or 3 separate columns
-      let types = splitMulti(row._('Project Type'));
-      if (!types.length) {
-        types = [row._('Type 1'), row._('Type 2'), row._('Type 3')].filter(Boolean);
-      }
+      const types       = splitMulti(row._('Project Type'));
       const designer    = row._('Designer')          || '';
       const purchaser   = row._('Purchaser')         || '';
       const summary     = row._('Summary')           || '';
@@ -67,84 +57,91 @@
 
       const item = tpl.cloneNode(true);
 
-      // Fill the visible fields
-      setText(item.querySelector('[fs-list-field="project-name"]'), name);
-      setText(item.querySelector('[fs-list-field="year"]'), year);
-      setText(item.querySelector('.categories.region'), region);
-
-      // 3 type slots (these are the chips in your markup)
+      const nameEl   = item.querySelector('[fs-list-field="project-name"]');
+      const yearEl   = item.querySelector('[fs-list-field="year"]');
       const typeWrap = item.querySelector('#w-node-e49b52f6-5b1d-8a7a-e0f6-5c3854a78d42-c10dda18');
+      const regionEl = item.querySelector('.categories.region');
+
+      if (nameEl) nameEl.textContent = name;
+      if (yearEl) yearEl.textContent = year;
+      if (regionEl) regionEl.textContent = region;
+
       if (typeWrap) {
-        const slots = typeWrap.querySelectorAll('.categories.type');
-        slots.forEach((slot, i) => setText(slot, types[i] || ''));
+        const typeSlots = typeWrap.querySelectorAll('.categories.type');
+        typeSlots.forEach((slot, i) => slot.textContent = types[i] || '');
       }
 
-      // Hover image inside mouse_wrapper
-      setImg(item.querySelector('.mouse_wrapper img'), heroImage, name);
+      const hoverImg = item.querySelector('.mouse_wrapper img');
+      if (hoverImg && heroImage) {
+        hoverImg.src = heroImage;
+        hoverImg.alt = name;
+      }
 
-      // Dropdown content (three text blocks inside right column)
-      const info = item.querySelectorAll('.text-block-12.project-text');
-      setText(info[0], summary);
-      setText(info[1], designer);
-      setText(info[2], purchaser);
+      const summaryEl   = item.querySelector('.text-block-12.project-text.w-dyn-bind-empty');
+      const designerEl  = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[1];
+      const purchaserEl = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[2];
+      if (summaryEl)   summaryEl.textContent = summary;
+      if (designerEl)  designerEl.textContent = designer;
+      if (purchaserEl) purchaserEl.textContent = purchaser;
 
-      // link to full project
-      const viewLink = item.querySelector('.index-column-2 .link-block-8 a, .index-column-2 .link-block-8');
+      const viewLink = item.querySelector('.index-column-2 .link-block-8');
       if (viewLink) viewLink.href = projectURL || '#';
 
-      // Hidden fields Finsweet reads
-      setText(item.querySelector('[fs-list-field="region"]'), region);
-      item.querySelectorAll('[fs-list-field="project-type"]').forEach((el, i) => setText(el, types[i] || ''));
+      const regionFilterEl = item.querySelector('[fs-list-field="region"]');
+      if (regionFilterEl) regionFilterEl.textContent = region;
 
       list.appendChild(item);
     });
   }
 
-  // --- SELECTED WORKS (selected-works.html) ---
+  // --- SELECTED WORKS GRID (selected-works.html) ---
   async function renderSelectedWorks() {
     const gridList = document.querySelector('section.projects-grid-list .collection-list');
-    if (!gridList) return;
-
+    if (!gridList) return; // not on this page
     const templateItem = gridList.querySelector('.w-dyn-item');
     if (!templateItem) return;
 
     const rows = await loadCSV(PROJECTS_CSV);
+    console.log('[CMS] Selected Works rows:', rows.length);
 
-    const tpl = templateItem.cloneNode(true);
     gridList.innerHTML = '';
+    const tpl = templateItem.cloneNode(true);
 
     rows.forEach(row => {
       const name        = row._('Project Name')   || row._('Name') || '';
       const location    = row._('Location')       || '';
       const region      = row._('Region')         || '';
-      let types         = splitMulti(row._('Project Type'));
-      if (!types.length) types = [row._('Type 1'), row._('Type 2'), row._('Type 3')].filter(Boolean);
+      const types       = splitMulti(row._('Project Type'));
       const imageURL    = row._('Hero Image URL') || '';
       const projectURL  = row._('Project URL')    || '#';
 
       const item = tpl.cloneNode(true);
-
       const link = item.querySelector('a.project-link') || item.querySelector('a');
-      if (link) link.href = projectURL;
+      if (link) link.href = projectURL || '#';
 
-      setText(item.querySelector('.grid-project-title'), name);
-      setText(item.querySelector('.grid-project-location'), location);
-      setImg(item.querySelector('.grid-project-image'), imageURL, name);
-
-      // tags for filters
-      const tagList = [region, ...types].filter(Boolean).join(',').toLowerCase();
       const card = item.querySelector('.grid-project');
-      if (card) card.setAttribute('data-tag', tagList);
+      const img  = item.querySelector('.grid-project-image');
+      const titleEl = item.querySelector('.grid-project-title');
+      const locEl   = item.querySelector('.grid-project-location');
 
-      // mirror into hidden fields (used by Finsweet)
-      setText(item.querySelector('[fs-list-field="region"]'), region);
-      item.querySelectorAll('[fs-list-field="project-type"]').forEach((el, i) => setText(el, types[i] || ''));
+      if (titleEl) titleEl.textContent = name;
+      if (locEl)   locEl.textContent = location;
+      if (img && imageURL) { img.src = imageURL; img.alt = name; }
+
+      const tagList = [region, ...types].filter(Boolean);
+      if (card) card.setAttribute('data-tag', tagList.join(',').toLowerCase());
+
+      const hiddenRegion = item.querySelector('[fs-list-field="region"]');
+      if (hiddenRegion) hiddenRegion.textContent = region;
+      const hiddenTypes = item.querySelectorAll('[fs-list-field="project-type"]');
+      hiddenTypes.forEach((el, i) => el.textContent = types[i] || '');
 
       gridList.appendChild(item);
     });
   }
 
-  // IMPORTANT: run immediately (defer ensures this runs before Finsweet/Webflow)
-  renderProjectIndex().catch(console.error);
-  renderSelectedWorks().catch(console.error);
+  document.addEventListener('DOMContentLoaded', () => {
+    renderProjectIndex().catch(console.error);
+    renderSelectedWorks().catch(console.error);
+  });
 })();
