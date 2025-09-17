@@ -200,7 +200,7 @@ html {
       </div>
     </div>
     <div class="collection-list-wrapper-3 w-dyn-list">
-      <div fs-list-instance="projects" fs-list-element="list" role="list" class="w-dyn-items">
+      <div id="project-list" fs-list-instance="projects" fs-list-element="list" role="list" class="w-dyn-items">
         <div role="listitem" class="w-dyn-item">
           <div style="display:none" class="mouse_wrapper"><img src="images/Banquettes.webp" loading="lazy" alt="" class="hero_image w-dyn-bind-empty"></div>
           <div data-w-id="e49b52f6-5b1d-8a7a-e0f6-5c3854a78d3a" class="dropdown-trigger">
@@ -299,5 +299,14 @@ html {
   gtag('js', new Date());
   gtag('config', 'G-20TT18QVF2');
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="/js/cms.js"></script>
+<script>
+  // Render the CSV-powered index into #project-list
+  CMS.renderProjectIndex({ target: '#project-list', sortAZ: true });
+</script>
+
+
 </body>
 </html>
