@@ -1,7 +1,6 @@
 // /js/cms.js
 (function () {
-  // Use a RELATIVE path (no leading slash)
-  const PROJECTS_CSV = encodeURI('data/projects-index.csv');
+  const PROJECTS_CSV = encodeURI('data/projects-index.csv'); // relative path
 
   // --- Utilities ---
   function loadCSV(path) {
@@ -17,15 +16,24 @@
   }
   function normalizeRow(row) {
     const norm = {};
-    Object.keys(row).forEach(k => {
-      norm[k.trim().toLowerCase()] = row[k];
-    });
+    Object.keys(row).forEach(k => { norm[k.trim().toLowerCase()] = row[k]; });
     norm._ = (name) => norm[name.trim().toLowerCase()];
     return norm;
   }
   function splitMulti(v) {
     if (!v) return [];
     return String(v).split(/[,;|]/).map(s => s.trim()).filter(Boolean);
+  }
+  function setText(el, value) {
+    if (!el) return;
+    el.textContent = value || '';
+    el.classList.remove('w-dyn-bind-empty'); // Webflow hides these
+  }
+  function setImg(el, src, alt) {
+    if (!el || !src) return;
+    el.src = src;
+    el.alt = alt || '';
+    el.classList.remove('w-dyn-bind-empty'); // ensure it’s visible
   }
 
   // --- PROJECT INDEX (project-index.html) ---
@@ -36,13 +44,11 @@
     const template = list.querySelector('.w-dyn-item');
     if (!template) return;
 
-    // Load your CSV (relative path)
     const rows = await loadCSV(PROJECTS_CSV);
-    console.log('[CMS] Project Index rows:', rows.length);
 
-    // Clear and clone
-    list.innerHTML = '';
+    // keep a template, then clear the list
     const tpl = template.cloneNode(true);
+    list.innerHTML = '';
 
     rows.forEach(row => {
       const name        = row._('Project Name')      || row._('Name') || '';
@@ -57,55 +63,54 @@
 
       const item = tpl.cloneNode(true);
 
-      const nameEl   = item.querySelector('[fs-list-field="project-name"]');
-      const yearEl   = item.querySelector('[fs-list-field="year"]');
+      // Fill the visible fields
+      setText(item.querySelector('[fs-list-field="project-name"]'), name);
+      setText(item.querySelector('[fs-list-field="year"]'), year);
+
+      // region label shown on the row
+      setText(item.querySelector('.categories.region'), region);
+
+      // 3 type slots
       const typeWrap = item.querySelector('#w-node-e49b52f6-5b1d-8a7a-e0f6-5c3854a78d42-c10dda18');
-      const regionEl = item.querySelector('.categories.region');
-
-      if (nameEl) nameEl.textContent = name;
-      if (yearEl) yearEl.textContent = year;
-      if (regionEl) regionEl.textContent = region;
-
       if (typeWrap) {
         const typeSlots = typeWrap.querySelectorAll('.categories.type');
-        typeSlots.forEach((slot, i) => slot.textContent = types[i] || '');
+        typeSlots.forEach((slot, i) => setText(slot, types[i] || ''));
       }
 
+      // Hover image inside mouse_wrapper
       const hoverImg = item.querySelector('.mouse_wrapper img');
-      if (hoverImg && heroImage) {
-        hoverImg.src = heroImage;
-        hoverImg.alt = name;
-      }
+      setImg(hoverImg, heroImage, name);
 
-      const summaryEl   = item.querySelector('.text-block-12.project-text.w-dyn-bind-empty');
-      const designerEl  = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[1];
-      const purchaserEl = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[2];
-      if (summaryEl)   summaryEl.textContent = summary;
-      if (designerEl)  designerEl.textContent = designer;
-      if (purchaserEl) purchaserEl.textContent = purchaser;
+      // dropdown content (three text blocks)
+      const info = item.querySelectorAll('.text-block-12.project-text');
+      setText(info[0], summary);
+      setText(info[1], designer);
+      setText(info[2], purchaser);
 
+      // link to full project
       const viewLink = item.querySelector('.index-column-2 .link-block-8');
       if (viewLink) viewLink.href = projectURL || '#';
 
-      const regionFilterEl = item.querySelector('[fs-list-field="region"]');
-      if (regionFilterEl) regionFilterEl.textContent = region;
+      // hidden fields Finsweet reads
+      setText(item.querySelector('[fs-list-field="region"]'), region);
+      // types already set in the visible slots
 
       list.appendChild(item);
     });
   }
 
-  // --- SELECTED WORKS GRID (selected-works.html) ---
+  // --- SELECTED WORKS (selected-works.html) ---
   async function renderSelectedWorks() {
     const gridList = document.querySelector('section.projects-grid-list .collection-list');
-    if (!gridList) return; // not on this page
+    if (!gridList) return;
+
     const templateItem = gridList.querySelector('.w-dyn-item');
     if (!templateItem) return;
 
     const rows = await loadCSV(PROJECTS_CSV);
-    console.log('[CMS] Selected Works rows:', rows.length);
 
-    gridList.innerHTML = '';
     const tpl = templateItem.cloneNode(true);
+    gridList.innerHTML = '';
 
     rows.forEach(row => {
       const name        = row._('Project Name')   || row._('Name') || '';
@@ -116,25 +121,23 @@
       const projectURL  = row._('Project URL')    || '#';
 
       const item = tpl.cloneNode(true);
+
       const link = item.querySelector('a.project-link') || item.querySelector('a');
-      if (link) link.href = projectURL || '#';
+      if (link) link.href = projectURL;
 
+      setText(item.querySelector('.grid-project-title'), name);
+      setText(item.querySelector('.grid-project-location'), location);
+      setImg(item.querySelector('.grid-project-image'), imageURL, name);
+
+      // tags for filters
+      const tagList = [region, ...types].filter(Boolean).join(',').toLowerCase();
       const card = item.querySelector('.grid-project');
-      const img  = item.querySelector('.grid-project-image');
-      const titleEl = item.querySelector('.grid-project-title');
-      const locEl   = item.querySelector('.grid-project-location');
+      if (card) card.setAttribute('data-tag', tagList);
 
-      if (titleEl) titleEl.textContent = name;
-      if (locEl)   locEl.textContent = location;
-      if (img && imageURL) { img.src = imageURL; img.alt = name; }
-
-      const tagList = [region, ...types].filter(Boolean);
-      if (card) card.setAttribute('data-tag', tagList.join(',').toLowerCase());
-
-      const hiddenRegion = item.querySelector('[fs-list-field="region"]');
-      if (hiddenRegion) hiddenRegion.textContent = region;
-      const hiddenTypes = item.querySelectorAll('[fs-list-field="project-type"]');
-      hiddenTypes.forEach((el, i) => el.textContent = types[i] || '');
+      // mirror into hidden fields
+      setText(item.querySelector('[fs-list-field="region"]'), region);
+      item.querySelectorAll('[fs-list-field="project-type"]')
+        .forEach((el, i) => setText(el, types[i] || ''));
 
       gridList.appendChild(item);
     });
