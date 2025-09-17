@@ -1,6 +1,6 @@
 // /js/cms.js
 (function () {
-  const PROJECTS_CSV = encodeURI('data/projects-index.csv'); // relative path
+  const PROJECTS_CSV = new URL('data/projects-index.csv', window.location.href).href;
 
   // --- Utilities ---
   function loadCSV(path) {
