@@ -1,5 +1,8 @@
 // /js/cms.js
 (function () {
+  // Use a RELATIVE path (no leading slash)
+  const PROJECTS_CSV = encodeURI('data/projects-index.csv');
+
   // --- Utilities ---
   function loadCSV(path) {
     return new Promise((resolve, reject) => {
@@ -13,7 +16,6 @@
     });
   }
   function normalizeRow(row) {
-    // make header access case/space-insensitive: row._["project name"]
     const norm = {};
     Object.keys(row).forEach(k => {
       norm[k.trim().toLowerCase()] = row[k];
@@ -23,7 +25,6 @@
   }
   function splitMulti(v) {
     if (!v) return [];
-    // support comma, semicolon, or pipe separated
     return String(v).split(/[,;|]/).map(s => s.trim()).filter(Boolean);
   }
 
@@ -31,34 +32,31 @@
   async function renderProjectIndex() {
     const list = document.querySelector('#project-list');
     if (!list) return; // not on this page
-    // Template is the single .w-dyn-item that Webflow left in the list
+
     const template = list.querySelector('.w-dyn-item');
     if (!template) return;
 
-    // Load your CSV
-    const rows = await loadCSV('/data/Stellar Works Bespoke - Projects Index.csv');
+    // Load your CSV (relative path)
+    const rows = await loadCSV(PROJECTS_CSV);
+    console.log('[CMS] Project Index rows:', rows.length);
 
-    // Optional: clear existing items (keep one template hidden)
+    // Clear and clone
     list.innerHTML = '';
-    // We’ll keep a detached clone as our template
     const tpl = template.cloneNode(true);
 
     rows.forEach(row => {
-      // CHANGE THESE to match your CSV headers exactly
       const name        = row._('Project Name')      || row._('Name') || '';
       const year        = row._('Year')              || '';
       const region      = row._('Region')            || '';
-      const types       = splitMulti(row._('Project Type')); // can be "Hotel, F&B, Workplace"
+      const types       = splitMulti(row._('Project Type'));
       const designer    = row._('Designer')          || '';
       const purchaser   = row._('Purchaser')         || '';
       const summary     = row._('Summary')           || '';
       const projectURL  = row._('Project URL')       || '#';
-      const heroImage   = row._('Hero Image URL')    || ''; // absolute or /images/...
+      const heroImage   = row._('Hero Image URL')    || '';
 
-      // clone and fill
       const item = tpl.cloneNode(true);
 
-      // Top row fields (these exist in your HTML)
       const nameEl   = item.querySelector('[fs-list-field="project-name"]');
       const yearEl   = item.querySelector('[fs-list-field="year"]');
       const typeWrap = item.querySelector('#w-node-e49b52f6-5b1d-8a7a-e0f6-5c3854a78d42-c10dda18');
@@ -68,20 +66,17 @@
       if (yearEl) yearEl.textContent = year;
       if (regionEl) regionEl.textContent = region;
 
-      // Put up to 3 types into the three type “slots”
       if (typeWrap) {
         const typeSlots = typeWrap.querySelectorAll('.categories.type');
         typeSlots.forEach((slot, i) => slot.textContent = types[i] || '');
       }
 
-      // Hover image (inside .mouse_wrapper > img)
       const hoverImg = item.querySelector('.mouse_wrapper img');
       if (hoverImg && heroImage) {
         hoverImg.src = heroImage;
         hoverImg.alt = name;
       }
 
-      // Dropdown content: summary/designer/purchaser
       const summaryEl   = item.querySelector('.text-block-12.project-text.w-dyn-bind-empty');
       const designerEl  = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[1];
       const purchaserEl = item.querySelectorAll('.text-block-12.project-text.w-dyn-bind-empty')[2];
@@ -89,16 +84,11 @@
       if (designerEl)  designerEl.textContent = designer;
       if (purchaserEl) purchaserEl.textContent = purchaser;
 
-      // “View Full Project” link in right column
       const viewLink = item.querySelector('.index-column-2 .link-block-8');
       if (viewLink) viewLink.href = projectURL || '#';
 
-      // Region/type values for Finsweet filters (they look for text/values in DOM)
-      // Your checkboxes use fs-list-field="region" and "project-type" in several places.
-      // Ensure there is at least one element with those attrs containing the values.
       const regionFilterEl = item.querySelector('[fs-list-field="region"]');
       if (regionFilterEl) regionFilterEl.textContent = region;
-      // For project types, reuse the type slots we filled above.
 
       list.appendChild(item);
     });
@@ -106,15 +96,14 @@
 
   // --- SELECTED WORKS GRID (selected-works.html) ---
   async function renderSelectedWorks() {
-    // main grid list
     const gridList = document.querySelector('section.projects-grid-list .collection-list');
     if (!gridList) return; // not on this page
     const templateItem = gridList.querySelector('.w-dyn-item');
     if (!templateItem) return;
 
-    const rows = await loadCSV('/data/Stellar Works Bespoke - Projects Index.csv');
+    const rows = await loadCSV(PROJECTS_CSV);
+    console.log('[CMS] Selected Works rows:', rows.length);
 
-    // reset list and keep a template
     gridList.innerHTML = '';
     const tpl = templateItem.cloneNode(true);
 
@@ -139,11 +128,9 @@
       if (locEl)   locEl.textContent = location;
       if (img && imageURL) { img.src = imageURL; img.alt = name; }
 
-      // Build a data-tag like "Americas,F&B" so your existing JS/Finsweet can filter
       const tagList = [region, ...types].filter(Boolean);
       if (card) card.setAttribute('data-tag', tagList.join(',').toLowerCase());
 
-      // Also mirror tags into the hidden filter divs present in your markup
       const hiddenRegion = item.querySelector('[fs-list-field="region"]');
       if (hiddenRegion) hiddenRegion.textContent = region;
       const hiddenTypes = item.querySelectorAll('[fs-list-field="project-type"]');
@@ -153,7 +140,6 @@
     });
   }
 
-  // Kick off on load
   document.addEventListener('DOMContentLoaded', () => {
     renderProjectIndex().catch(console.error);
     renderSelectedWorks().catch(console.error);
